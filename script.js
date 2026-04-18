@@ -659,17 +659,368 @@ function stopAnimation() {
   window.setTimeout(() => stopButton.classList.remove("is-active"), 350);
 }
 
-greenFlag.addEventListener("click", () => {
-  if (!openCostumes.hasAttribute("hidden") || costumes.length > 0) {
-    stopAnimation();
+const stageCanvas = document.querySelector(".stage-canvas");
+
+const sprite = {
+  x: 0,
+  y: 0,
+  direction: 90,
+  size: 100,
+  visible: true,
+  rotationStyle: "all around",
+  bubbleEl: null
+};
+
+let scriptRunId = 0;
+let scriptRunning = false;
+let scriptAbort = null;
+
+function applySpriteTransform() {
+  let rot = sprite.direction - 90;
+  let flipX = 1;
+  if (sprite.rotationStyle === "left-right") {
+    rot = 0;
+    flipX = sprite.direction < 0 || sprite.direction > 180 ? -1 : 1;
+  } else if (sprite.rotationStyle === "don't rotate") {
+    rot = 0;
+  }
+  const s = sprite.size / 100;
+  foxSprite.style.transformOrigin = "center center";
+  foxSprite.style.transform =
+    `translate(${sprite.x}px, ${-sprite.y}px) rotate(${rot}deg) scale(${s * flipX}, ${s})`;
+  foxSprite.style.visibility = sprite.visible ? "visible" : "hidden";
+  positionBubble();
+}
+
+function resetSpriteState() {
+  sprite.x = 0;
+  sprite.y = 0;
+  sprite.direction = 90;
+  sprite.size = 100;
+  sprite.visible = true;
+  sprite.rotationStyle = "all around";
+  hideBubble();
+  applySpriteTransform();
+}
+
+function showBubble(text, kind) {
+  hideBubble();
+  const bubble = document.createElement("div");
+  bubble.className = `speech-bubble ${kind === "think" ? "think" : "say"}`;
+  bubble.textContent = String(text);
+  stageCanvas.appendChild(bubble);
+  sprite.bubbleEl = bubble;
+  positionBubble();
+}
+
+function hideBubble() {
+  if (sprite.bubbleEl) {
+    sprite.bubbleEl.remove();
+    sprite.bubbleEl = null;
+  }
+}
+
+function positionBubble() {
+  if (!sprite.bubbleEl) return;
+  const stageRect = stageCanvas.getBoundingClientRect();
+  const cx = stageRect.width / 2;
+  const cy = stageRect.height / 2;
+  const halfW = (foxSprite.width || foxSprite.offsetWidth || 140) / 2;
+  const halfH = (foxSprite.height || foxSprite.offsetHeight || 140) / 2;
+  const left = cx + sprite.x + halfW * 0.6;
+  const top = cy - sprite.y - halfH - 8;
+  sprite.bubbleEl.style.left = `${Math.max(4, Math.min(stageRect.width - 4, left))}px`;
+  sprite.bubbleEl.style.top = `${Math.max(4, top)}px`;
+}
+
+function stageBounds() {
+  const r = stageCanvas.getBoundingClientRect();
+  const halfW = r.width / 2 - (foxSprite.offsetWidth || 140) / 2;
+  const halfH = r.height / 2 - (foxSprite.offsetHeight || 140) / 2;
+  return { halfW: Math.max(20, halfW), halfH: Math.max(20, halfH) };
+}
+
+function clampToStage() {
+  const { halfW, halfH } = stageBounds();
+  if (sprite.x > halfW) sprite.x = halfW;
+  if (sprite.x < -halfW) sprite.x = -halfW;
+  if (sprite.y > halfH) sprite.y = halfH;
+  if (sprite.y < -halfH) sprite.y = -halfH;
+}
+
+function bounceIfEdge() {
+  const { halfW, halfH } = stageBounds();
+  let bounced = false;
+  if (sprite.x > halfW) { sprite.x = halfW; sprite.direction = -sprite.direction; bounced = true; }
+  if (sprite.x < -halfW) { sprite.x = -halfW; sprite.direction = -sprite.direction; bounced = true; }
+  if (sprite.y > halfH) { sprite.y = halfH; sprite.direction = 180 - sprite.direction; bounced = true; }
+  if (sprite.y < -halfH) { sprite.y = -halfH; sprite.direction = 180 - sprite.direction; bounced = true; }
+  if (bounced) applySpriteTransform();
+}
+
+function moveSteps(n) {
+  const r = (sprite.direction * Math.PI) / 180;
+  sprite.x += n * Math.sin(r);
+  sprite.y += n * Math.cos(r);
+  applySpriteTransform();
+}
+
+function turnBy(deg) {
+  sprite.direction = ((sprite.direction + deg + 540) % 360) - 180;
+  applySpriteTransform();
+}
+
+function pickRandom(min, max) {
+  return Math.round(min + Math.random() * (max - min));
+}
+
+function sleep(ms, runId) {
+  return new Promise((resolve) => {
+    if (ms <= 0) {
+      requestAnimationFrame(() => resolve());
+      return;
+    }
+    const t = window.setTimeout(() => resolve(), ms);
+    if (scriptAbort) {
+      scriptAbort.then(() => {
+        window.clearTimeout(t);
+        resolve();
+      });
+    }
+  });
+}
+
+function glide(seconds, tx, ty, runId) {
+  return new Promise((resolve) => {
+    const startX = sprite.x;
+    const startY = sprite.y;
+    const start = performance.now();
+    const dur = Math.max(0, seconds * 1000);
+    function step(now) {
+      if (runId !== scriptRunId || !scriptRunning) {
+        resolve();
+        return;
+      }
+      const t = dur === 0 ? 1 : Math.min(1, (now - start) / dur);
+      sprite.x = startX + (tx - startX) * t;
+      sprite.y = startY + (ty - startY) * t;
+      applySpriteTransform();
+      if (t < 1) requestAnimationFrame(step);
+      else resolve();
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+function nextCostume() {
+  if (costumes.length <= 1) return;
+  setCostume((currentCostumeIndex + 1) % costumes.length);
+}
+
+function prevCostume() {
+  if (costumes.length <= 1) return;
+  setCostume((currentCostumeIndex - 1 + costumes.length) % costumes.length);
+}
+
+function switchCostumeByName(name) {
+  const idx = costumes.findIndex(
+    (c) => c.name.toLowerCase() === String(name).toLowerCase()
+  );
+  if (idx >= 0) setCostume(idx);
+  else nextCostume();
+}
+
+const blockHandlers = [
+  { re: /^move \((-?\d+(?:\.\d+)?)\) steps$/i,
+    run: (m) => { moveSteps(parseFloat(m[1])); } },
+  { re: /^turn (?:clockwise|cw|↻) \((-?\d+(?:\.\d+)?)\) degrees$/i,
+    run: (m) => { turnBy(parseFloat(m[1])); } },
+  { re: /^turn (?:counterclockwise|ccw|↺) \((-?\d+(?:\.\d+)?)\) degrees$/i,
+    run: (m) => { turnBy(-parseFloat(m[1])); } },
+  { re: /^go to x: \((-?\d+(?:\.\d+)?)\) y: \((-?\d+(?:\.\d+)?)\)$/i,
+    run: (m) => { sprite.x = +m[1]; sprite.y = +m[2]; applySpriteTransform(); } },
+  { re: /^go to \[random position\]$/i,
+    run: () => {
+      const { halfW, halfH } = stageBounds();
+      sprite.x = pickRandom(-halfW, halfW);
+      sprite.y = pickRandom(-halfH, halfH);
+      applySpriteTransform();
+    } },
+  { re: /^glide \((-?\d+(?:\.\d+)?)\) secs to x: \((-?\d+(?:\.\d+)?)\) y: \((-?\d+(?:\.\d+)?)\)$/i,
+    run: (m, runId) => glide(+m[1], +m[2], +m[3], runId) },
+  { re: /^point in direction \((-?\d+(?:\.\d+)?)\)$/i,
+    run: (m) => { sprite.direction = parseFloat(m[1]); applySpriteTransform(); } },
+  { re: /^change x by \((-?\d+(?:\.\d+)?)\)$/i,
+    run: (m) => { sprite.x += parseFloat(m[1]); applySpriteTransform(); } },
+  { re: /^set x to \((-?\d+(?:\.\d+)?)\)$/i,
+    run: (m) => { sprite.x = parseFloat(m[1]); applySpriteTransform(); } },
+  { re: /^change y by \((-?\d+(?:\.\d+)?)\)$/i,
+    run: (m) => { sprite.y += parseFloat(m[1]); applySpriteTransform(); } },
+  { re: /^set y to \((-?\d+(?:\.\d+)?)\)$/i,
+    run: (m) => { sprite.y = parseFloat(m[1]); applySpriteTransform(); } },
+  { re: /^if on edge, bounce$/i,
+    run: () => { bounceIfEdge(); } },
+  { re: /^set rotation style \[(.+?)\]$/i,
+    run: (m) => { sprite.rotationStyle = m[1].toLowerCase(); applySpriteTransform(); } },
+
+  { re: /^say \[(.*?)\] for \((-?\d+(?:\.\d+)?)\) seconds$/i,
+    run: async (m, runId) => { showBubble(m[1], "say"); await sleep(+m[2] * 1000, runId); if (runId === scriptRunId) hideBubble(); } },
+  { re: /^say \[(.*?)\]$/i,
+    run: (m) => { if (m[1] === "") hideBubble(); else showBubble(m[1], "say"); } },
+  { re: /^think \[(.*?)\] for \((-?\d+(?:\.\d+)?)\) seconds$/i,
+    run: async (m, runId) => { showBubble(m[1], "think"); await sleep(+m[2] * 1000, runId); if (runId === scriptRunId) hideBubble(); } },
+  { re: /^think \[(.*?)\]$/i,
+    run: (m) => { if (m[1] === "") hideBubble(); else showBubble(m[1], "think"); } },
+  { re: /^switch costume to \[(.+?)\]$/i,
+    run: (m) => { switchCostumeByName(m[1]); } },
+  { re: /^next costume$/i,
+    run: () => { nextCostume(); } },
+  { re: /^change size by \((-?\d+(?:\.\d+)?)\)$/i,
+    run: (m) => { sprite.size = Math.max(5, sprite.size + parseFloat(m[1])); applySpriteTransform(); } },
+  { re: /^set size to \((-?\d+(?:\.\d+)?)\)%$/i,
+    run: (m) => { sprite.size = Math.max(5, parseFloat(m[1])); applySpriteTransform(); } },
+  { re: /^show$/i,
+    run: () => { sprite.visible = true; applySpriteTransform(); } },
+  { re: /^hide$/i,
+    run: () => { sprite.visible = false; applySpriteTransform(); } },
+
+  { re: /^wait \((-?\d+(?:\.\d+)?)\) seconds$/i,
+    run: (m, runId) => sleep(+m[1] * 1000, runId) },
+
+  { re: /^when green flag clicked$/i, run: () => {} },
+  { re: /^when \[.+?\] key pressed$/i, run: () => {} },
+  { re: /^when this sprite clicked$/i, run: () => {} },
+  { re: /^when backdrop switches to \[.+?\]$/i, run: () => {} },
+  { re: /^when \[.+?\] > \(.+?\)$/i, run: () => {} },
+  { re: /^when I receive \[.+?\]$/i, run: () => {} },
+  { re: /^broadcast \[.+?\](?: and wait)?$/i, run: () => {} }
+];
+
+async function execBlock(text, runId) {
+  for (const handler of blockHandlers) {
+    const m = text.match(handler.re);
+    if (m) {
+      try {
+        await handler.run(m, runId);
+      } catch (err) {
+        console.warn("Block failed:", text, err);
+      }
+      return;
+    }
+  }
+}
+
+async function runProgram(blocks, runId) {
+  let i = 0;
+  if (blocks.length > 0) {
+    const hatIdx = blocks.findIndex((b) => /^when green flag clicked$/i.test(b.text));
+    if (hatIdx >= 0) i = hatIdx + 1;
+  }
+
+  while (i < blocks.length && runId === scriptRunId && scriptRunning) {
+    const text = blocks[i].text;
+
+    let m = text.match(/^repeat \((\d+)\)$/i);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      const next = blocks[i + 1];
+      if (next) {
+        for (let k = 0; k < n && runId === scriptRunId && scriptRunning; k++) {
+          await execBlock(next.text, runId);
+          await sleep(0, runId);
+        }
+        i += 2;
+      } else {
+        i += 1;
+      }
+      continue;
+    }
+
+    if (/^forever$/i.test(text)) {
+      const next = blocks[i + 1];
+      if (next) {
+        while (runId === scriptRunId && scriptRunning) {
+          await execBlock(next.text, runId);
+          await sleep(0, runId);
+        }
+      }
+      i = blocks.length;
+      continue;
+    }
+
+    if (/^stop \[all\]$/i.test(text)) {
+      scriptRunning = false;
+      break;
+    }
+
+    await execBlock(text, runId);
+    i += 1;
+  }
+}
+
+function getProgramBlocks() {
+  return [...scriptArea.querySelectorAll(".script-block")].map((el) => ({
+    type: el.dataset.type || "motion",
+    text: el.textContent.trim()
+  }));
+}
+
+function stopProgram() {
+  scriptRunning = false;
+  scriptRunId += 1;
+  if (scriptAbort && scriptAbort._resolve) {
+    scriptAbort._resolve();
+  }
+  greenFlag.classList.remove("is-active");
+  stopButton.classList.add("is-active");
+  window.setTimeout(() => stopButton.classList.remove("is-active"), 350);
+}
+
+async function startProgram() {
+  stopProgram();
+  stopAnimation();
+
+  const blocks = getProgramBlocks();
+  if (blocks.length === 0) {
     setCostume(0);
     startAnimation();
-  } else {
-    startAnimation();
+    return;
   }
+
+  resetSpriteState();
+  scriptRunId += 1;
+  const myRunId = scriptRunId;
+  scriptRunning = true;
+  greenFlag.classList.add("is-active");
+
+  let resolveAbort;
+  scriptAbort = new Promise((r) => { resolveAbort = r; });
+  scriptAbort._resolve = resolveAbort;
+
+  try {
+    await runProgram(blocks, myRunId);
+  } finally {
+    if (myRunId === scriptRunId) {
+      scriptRunning = false;
+      greenFlag.classList.remove("is-active");
+    }
+  }
+}
+
+greenFlag.addEventListener("click", () => {
+  startProgram();
 });
 
-stopButton.addEventListener("click", stopAnimation);
+stopButton.addEventListener("click", () => {
+  stopProgram();
+  stopAnimation();
+});
+
+window.addEventListener("resize", () => {
+  applySpriteTransform();
+});
+
+resetSpriteState();
 
 if (tryLoadSharedProject()) {
   /* loaded from link */

@@ -317,6 +317,52 @@ body {
 .fox-sprite {
   display: block;
   filter: drop-shadow(0 6px 10px rgba(30, 50, 90, 0.18));
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.speech-bubble {
+  position: absolute;
+  max-width: 200px;
+  padding: 0.45rem 0.7rem;
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 2px solid #1d2a44;
+  border-radius: 14px;
+  box-shadow: 0 4px 10px rgba(30, 50, 90, 0.18);
+  z-index: 5;
+  pointer-events: none;
+  word-wrap: break-word;
+}
+
+.speech-bubble::after {
+  content: "";
+  position: absolute;
+  left: -10px;
+  bottom: 8px;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-left: 2px solid #1d2a44;
+  border-bottom: 2px solid #1d2a44;
+  transform: rotate(45deg);
+}
+
+.speech-bubble.think {
+  border-style: dashed;
+}
+
+.speech-bubble.think::after {
+  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  left: -6px;
+  bottom: 4px;
+  background: #ffffff;
+  border: 2px solid #1d2a44;
+  transform: none;
 }
 
 .costumes-btn {
