@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoxCoders - Block Coding Basics</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <p class="tag">FoxCoders.net</p>
+      <h1>Scratch-Style Playground</h1>
+    </div>
+    <button id="folderButton" class="toolbar-btn">Folder</button>
+  </header>
+
+  <main class="workspace">
+    <section id="projectShell" class="project-shell">
+      <div class="editor-top-right">
+        <button id="newButton" class="new-btn" aria-expanded="false">New</button>
+        <div id="commandMenu" class="command-menu" hidden>
+          <p class="menu-title">Command Types</p>
+          <button class="command-type motion" data-block="move 10 steps">Motion</button>
+          <button class="command-type looks" data-block="say Hello!">Looks</button>
+          <button class="command-type sound" data-block="play sound pop">Sound</button>
+          <button class="command-type events" data-block="when green flag clicked">Events</button>
+          <button class="command-type control" data-block="repeat 10">Control</button>
+          <button class="command-type sensing" data-block="touching mouse-pointer?">Sensing</button>
+          <button class="command-type operators" data-block="pick random 1 to 10">Operators</button>
+          <button class="command-type variables" data-block="set score to 0">Variables</button>
+          <button class="command-type myblocks" data-block="define jumpBoost">My Blocks</button>
+        </div>
+      </div>
+
+      <div class="columns">
+        <section class="panel palette">
+          <h2>Block Palette</h2>
+          <p id="paletteHint">Press <strong>Folder</strong> to begin.</p>
+          <ul id="paletteList" class="palette-list"></ul>
+        </section>
+
+        <section class="panel script">
+          <h2>Program Area</h2>
+          <p class="script-help">Your selected command types will appear as blocks here.</p>
+          <div id="scriptArea" class="script-area">No blocks yet.</div>
+          <button id="resetProgram" class="reset-btn">Reset Program</button>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Built as a first static website for FoxCoders.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
