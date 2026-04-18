@@ -17,19 +17,105 @@
 
   <main class="workspace">
     <section id="projectShell" class="project-shell">
-      <div class="editor-top-right">
-        <button id="newButton" class="new-btn" aria-expanded="false">New</button>
-        <div id="commandMenu" class="command-menu" hidden>
-          <p class="menu-title">Command Types</p>
-          <button class="command-type motion" data-block="move 10 steps">Motion</button>
-          <button class="command-type looks" data-block="say Hello!">Looks</button>
-          <button class="command-type sound" data-block="play sound pop">Sound</button>
-          <button class="command-type events" data-block="when green flag clicked">Events</button>
-          <button class="command-type control" data-block="repeat 10">Control</button>
-          <button class="command-type sensing" data-block="touching mouse-pointer?">Sensing</button>
-          <button class="command-type operators" data-block="pick random 1 to 10">Operators</button>
-          <button class="command-type variables" data-block="set score to 0">Variables</button>
-          <button class="command-type myblocks" data-block="define jumpBoost">My Blocks</button>
+      <div class="project-toolbar">
+        <nav id="categoryStrip" class="category-strip" aria-label="Block categories">
+          <button type="button" class="cat-tab motion" data-category="motion">Motion</button>
+          <button type="button" class="cat-tab looks" data-category="looks">Looks</button>
+          <button type="button" class="cat-tab sound" data-category="sound">Sound</button>
+          <button type="button" class="cat-tab events" data-category="events">Events</button>
+          <button type="button" class="cat-tab control" data-category="control">Control</button>
+          <button type="button" class="cat-tab sensing" data-category="sensing">Sensing</button>
+          <button type="button" class="cat-tab operators" data-category="operators">Operators</button>
+        </nav>
+        <div class="toolbar-right">
+          <button id="shareProject" class="share-btn" type="button">Share project</button>
+          <button id="newButton" class="new-btn" type="button" aria-expanded="false">New</button>
+          <div id="commandMenu" class="command-menu" hidden>
+            <p class="menu-title">More</p>
+            <button type="button" class="command-type variables">Variables</button>
+            <button type="button" class="command-type myblocks">My Blocks</button>
+          </div>
+        </div>
+      </div>
+      <p id="shareStatus" class="share-status" hidden></p>
+
+      <section id="stagePanel" class="stage-panel" aria-label="Stage">
+        <div class="stage-header">
+          <div class="stage-controls">
+            <button
+              id="greenFlag"
+              class="flag-btn"
+              type="button"
+              aria-label="Start project (green flag)"
+              title="Go"
+            >
+              <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
+                <line x1="6" y1="3" x2="6" y2="30" stroke="#3a3a3a" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M6 5 C 12 1, 18 9, 26 5 L 26 16 C 18 20, 12 12, 6 16 Z"
+                      fill="#4cbb17" stroke="#2e7a0e" stroke-width="1.2" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button
+              id="stopButton"
+              class="stop-btn"
+              type="button"
+              aria-label="Stop project"
+              title="Stop"
+            >
+              <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
+                <polygon points="16,3 29,10 29,22 16,29 3,22 3,10"
+                         fill="#e23434" stroke="#9b1818" stroke-width="1.4" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <span class="stage-title">Stage</span>
+          <span class="stage-sprite-name">Sprite: Fox</span>
+        </div>
+        <div class="stage-canvas">
+          <img
+            id="foxSprite"
+            class="fox-sprite"
+            src="sprites/fox.svg"
+            width="140"
+            height="140"
+            alt="Fox — default sprite"
+          />
+          <button
+            id="openCostumes"
+            class="costumes-btn"
+            type="button"
+          >Costumes</button>
+          <button
+            id="openSpriteLibrary"
+            class="sprite-pick-btn"
+            type="button"
+            aria-label="Choose a sprite"
+            title="Choose a sprite"
+          >
+            <img src="sprites/cat-face-icon.svg" alt="" width="30" height="30">
+          </button>
+        </div>
+      </section>
+
+      <div id="costumesModal" class="sprite-modal" hidden>
+        <div class="sprite-modal-card costumes-card" role="dialog" aria-label="Costumes" aria-modal="true">
+          <div class="sprite-modal-head">
+            <h3>Costumes</h3>
+            <button id="closeCostumes" class="modal-close" type="button" aria-label="Close">Close</button>
+          </div>
+          <div class="costumes-body">
+            <p class="costumes-help">
+              Add more pictures (costumes) to your sprite. Press the green flag to play
+              them as an animation. Press the red hexagon to stop.
+            </p>
+            <div class="costumes-speed">
+              <label for="costumeSpeed">Animation speed</label>
+              <input id="costumeSpeed" type="range" min="60" max="1000" step="20" value="220">
+              <span id="costumeSpeedLabel">220 ms / costume</span>
+            </div>
+            <ul id="costumeList" class="costume-list"></ul>
+            <button id="addCostume" class="add-costume-btn" type="button">+ Add costume from library</button>
+          </div>
         </div>
       </div>
 
@@ -44,10 +130,23 @@
           <h2>Program Area</h2>
           <p class="script-help">Your selected command types will appear as blocks here.</p>
           <div id="scriptArea" class="script-area">No blocks yet.</div>
-          <button id="resetProgram" class="reset-btn">Reset Program</button>
+          <div class="script-actions">
+            <button id="resetProgram" class="reset-btn" type="button">Reset Program</button>
+          </div>
         </section>
       </div>
     </section>
+
+    <div id="spriteModal" class="sprite-modal" hidden>
+      <div class="sprite-modal-card" role="dialog" aria-label="Choose a sprite" aria-modal="true">
+        <div class="sprite-modal-head">
+          <h3>Choose a Sprite</h3>
+          <button id="closeSpriteLibrary" class="modal-close" type="button" aria-label="Close">Close</button>
+        </div>
+        <input id="spriteSearch" class="sprite-search" type="search" placeholder="Search sprites by name (try cat, food, animal)..." autocomplete="off">
+        <ul id="spriteGrid" class="sprite-grid"></ul>
+      </div>
+    </div>
   </main>
 
   <footer>
